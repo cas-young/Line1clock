@@ -52,6 +52,7 @@
 </head>
 <body>
   <h1>Editor - Line 1</h1>
+  <button class="button" onclick="openDisplay()">Open Display (Fullscreen)</button>
   <div>
     <label>Countdown:</label>
     <input id="hours" type="number" min="0" placeholder="hh" />
@@ -77,6 +78,19 @@
   <div class="preview" id="preview">--:--:--</div>
 
   <script>
+    function openDisplay() {
+      const screenWidth = screen.availWidth;
+      const screenHeight = screen.availHeight;
+
+      const features = `toolbar=0,location=0,menubar=0,status=0,resizable=1,scrollbars=0,
+                        width=${screenWidth},height=${screenHeight},left=0,top=0`;
+
+      const win = window.open("display.html", "_blank", features);
+
+      win.onload = () => {
+        win.document.documentElement.requestFullscreen?.();
+      };
+    }
     // Set default countdown (1 hour 15 minutes) if not already set
     if (!localStorage.getItem("countdown")) {
       const defaultSeconds = 1 * 3600 + 15 * 60;
