@@ -26,7 +26,7 @@
     }
     .button {
       padding: 0.5rem 1rem;
-      margin-right: 1rem;
+      margin: 0.5rem 1rem 1rem 0;
       border: none;
       border-radius: 5px;
       color: white;
@@ -53,6 +53,7 @@
 <body>
   <h1>Editor - Line 1</h1>
   <button class="button" onclick="openDisplay()">Open Display (Fullscreen)</button>
+
   <div>
     <label>Countdown:</label>
     <input id="hours" type="number" min="0" placeholder="hh" />
@@ -78,6 +79,7 @@
   <div class="preview" id="preview">--:--:--</div>
 
   <script>
+    // Open Display Page in Kiosk-Style Window
     function openDisplay() {
       const screenWidth = screen.availWidth;
       const screenHeight = screen.availHeight;
@@ -91,7 +93,8 @@
         win.document.documentElement.requestFullscreen?.();
       };
     }
-    // Set default countdown (1 hour 15 minutes) if not already set
+
+    // Set default countdown if not set
     if (!localStorage.getItem("countdown")) {
       const defaultSeconds = 1 * 3600 + 15 * 60;
       localStorage.setItem("countdown", defaultSeconds);
@@ -269,3 +272,4 @@
   </script>
 </body>
 </html>
+
