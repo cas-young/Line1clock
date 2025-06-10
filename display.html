@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Production Countdown Display</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: sans-serif;
+      background-color: #000;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      text-align: center;
+    }
+
+    #timer {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding-top: 1rem;
+      font-size: 22vw;
+      font-weight: bold;
+      background-color: #111;
+    }
+
+    #break-message {
+      font-size: 2rem;
+      padding: 1rem;
+      background-color: #333;
+      display: none;
+    }
+
+    #bottom-bar {
+      display: flex;
+      flex-direction: column;
+      background-color: #222;
+      padding: 5rem 2rem;
+      min-height: 250px;
+    }
+
+    #date-time-row {
+      display: flex;
+      justify-content: center;
+      text-align: center;
+      padding-bottom: 4rem;
+      font-size: clamp(50px, 4vw, 300px);
+    }
+
+    #goal-actual-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: clamp(40px, 2vw, 100px);
+    }
+
+    .section {
+      flex: 1;
+      text-align: center;
+    }
+
+    #goal {
+      text-align: center;
+    }
+
+    #actual {
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <h1>Line 1</h1>
+  <div id="timer">--:--:--</div>
+  <div id="break-message"></div>
+  <div id="bottom-bar">
+    <div id="date-time-row">--</div>
+    <div id="goal-actual-row">
+      <div class="section" id="goal">Goal: --</div>
+      <div class="section" id="actual">Actual: --</div>
+    </div>
+  </div>
+
+  <script>
+    const preview = document.getElementById("timer");
+    const dateTimeRow = document.getElementById("date-time-row");
+    const goalElem = document.getElementById("goal");
+    const actualElem = document.getElementById("actual");
+    const breakMessage = document.getElementById("break-message");
+
+    if (!localStorage.getItem("countdown")) {
+      const defaultSeconds = 1 * 3600 + 15 * 60;
+      localStorage.setItem("countdown", defaultSeconds);
+      localStorage.setItem("lastTick", Date.now());
+      localStorage.setItem("paused", "false");
+      localStorage.setItem("breakPaused", "false");
+    }
+
+    function isInBreak() {
+      const breaks = JSON.parse(localStorage.getItem("breaks")) || [];
+      const now = new Date();
+      const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+      for (const br of breaks) {
+        if (!br.enabled) continue;
+        const [startH, startM] = br.start.split(":").map(Number);
+        const [endH, endM] = br.end.split(":").map(Number);
+        const startMinutes = startH * 60 + startM;
+        const endMinutes = endH * 60 + endM;
+
+        if (startMinutes <= currentMinutes && currentMinutes < endMinutes) {
+          return br.message || "Break Time";
+        }
+      }
+      return null;
+    }
+
+    function updateDateTime() {
+      const now = new Date();
+      const dateStr = now.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
+      const timeStr = now.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit'});
+      dateTimeRow.textContent = `${dateStr} | ${timeStr}`;
+    }
+
+    function updateGoalAndActual() {
+      const goal = localStorage.getItem("productionGoal") || "--";
+      const actual = localStorage.getItem("actualProduction") || "--";
+      goalElem.textContent = `Goal: ${goal}`;
+      actualElem.textContent = `Actual: ${actual}`;
+    }
+
+    function updateCountdown() {
+      const breakText = isInBreak();
+      const paused = localStorage.getItem("paused") === "true";
+      const breakPaused = localStorage.getItem("breakPaused") === "true";
+      const now = Date.now();
+
+      if (breakText && !paused) {
+        if (!breakPaused) {
+          const lastTick = parseInt(localStorage.getItem("lastTick")) || now;
+          const total = parseInt(localStorage.getItem("countdown")) || 0;
+          const elapsed = Math.floor((now - lastTick) / 1000);
+          const remaining = total - elapsed;
+
+          localStorage.setItem("countdown", Math.max(remaining, 0));
+          localStorage.setItem("paused", "true");
+          localStorage.setItem("breakPaused", "true");
+        }
+      } else if (!breakText && breakPaused) {
+        localStorage.setItem("lastTick", now);
+        localStorage.setItem("paused", "false");
+        localStorage.setItem("breakPaused", "false");
+      }
+
+      const isPaused = localStorage.getItem("paused") === "true";
+      const total = parseInt(localStorage.getItem("countdown")) || 0;
+      const lastTick = parseInt(localStorage.getItem("lastTick")) || now;
+
+      let elapsed = Math.floor((now - lastTick) / 1000);
+      let remaining = isPaused ? total : total - elapsed;
+      if (remaining < 0) remaining = 0;
+
+      const h = Math.floor(remaining / 3600).toString().padStart(2, '0');
+      const m = Math.floor((remaining % 3600) / 60).toString().padStart(2, '0');
+      const s = (remaining % 60).toString().padStart(2, '0');
+
+      preview.textContent = `${h}:${m}:${s}`;
+
+      if (breakText) {
+        breakMessage.textContent = breakText;
+        breakMessage.style.display = "block";
+      } else {
+        breakMessage.style.display = "none";
+      }
+    }
+
+    function updateAll() {
+      updateCountdown();
+      updateDateTime();
+      updateGoalAndActual();
+    }
+
+    setInterval(updateAll, 1000);
+    updateAll();
+  </script>
+</body>
+</html>
