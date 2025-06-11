@@ -5,8 +5,10 @@
   <title>Editor - Production Timer</title>
   <style>
     body { font-family: sans-serif; background-color: #f3f4f6; padding: 1rem; }
-    label { display: inline-block; width: 140px; }
-    input[type="number"], input[type="time"], input[type="text"] { padding: 0.5rem; margin-right: 0.5rem; }
+    label { display: inline-block; width: 120px; }
+    input[type="number"] {width: 2rem; padding: 0.5rem; margin-right: 0.5rem; }
+    input[type="time"] {width: 6rem; padding: 0.5rem; margin-right: 0.5rem; }
+    input[type="text"] {width: 8rem; padding: 0.5rem; margin-right: 0.5rem; }
     .button { padding: 0.5rem 1rem; margin-right: 1rem; border: none; border-radius: 5px; color: white; background-color: #3b82f6; cursor: pointer; }
     .button.gray { background-color: gray; }
     .preview { margin-top: 2rem; padding: 2rem; background: #111; color: white; font-size: 5vw; text-align: center; border-radius: 10px; }
@@ -24,8 +26,7 @@
       projectId: "production-clock-fa387",
       storageBucket: "production-clock-fa387.appspot.com",
       messagingSenderId: "424015012572",
-      appId: "1:424015012572:web:e4a7cf053c16c367130a19",
-      measurementId: "G-YLMDMBRCLJ"
+      appId: "1:424015012572:web:e4a7cf053c16c367130a19"
     };
 
     const app = initializeApp(firebaseConfig);
@@ -47,7 +48,8 @@
       breakPaused: false,
       productionGoal: 0,
       actualProduction: 0,
-      breaks: defaultBreaks
+      breaks: defaultBreaks,
+      showProductionCounters: true
     };
 
     let state = null;
@@ -64,14 +66,8 @@
         return defaultState;
       }
       const data = snapshot.val();
-      if (!data.breaks) {
-        data.breaks = defaultBreaks;
-      } else if (data.breaks.length < defaultBreaks.length) {
-        for (let i = data.breaks.length; i < defaultBreaks.length; i++) {
-          data.breaks.push(defaultBreaks[i]);
-        }
-        update(lineRef, { breaks: data.breaks });
-      }
+      if (!data.breaks) data.breaks = defaultBreaks;
+      if (data.showProductionCounters === undefined) data.showProductionCounters = true;
       return data;
     }
 
@@ -83,6 +79,7 @@
       document.getElementById("hours").value = Math.floor(state.countdown / 3600);
       document.getElementById("minutes").value = Math.floor((state.countdown % 3600) / 60);
       document.getElementById("seconds").value = state.countdown % 60;
+      document.getElementById("showCountersCheckbox").checked = state.showProductionCounters ?? true;
 
       pauseBtn.textContent = state.paused ? "Resume" : "Pause";
       pauseBtn.classList.toggle("gray", state.paused);
@@ -108,7 +105,7 @@
         });
 
         const label = document.createElement("label");
-        label.textContent = `Break ${index + 1}`;
+        label.textContent = ` Break ${index + 1} `;
 
         const startInput = document.createElement("input");
         startInput.type = "time";
@@ -150,6 +147,7 @@
 
     function updateCountdownPreview() {
       if (!state) return;
+
       const now = Date.now();
       const elapsed = Math.floor((now - state.lastTick) / 1000);
       let remaining = state.paused ? state.countdown : state.countdown - elapsed;
@@ -168,7 +166,16 @@
         (parseInt(document.getElementById("hours").value) || 0) * 3600 +
         (parseInt(document.getElementById("minutes").value) || 0) * 60 +
         (parseInt(document.getElementById("seconds").value) || 0);
-      set(lineRef, { countdown: totalSeconds, lastTick: Date.now(), paused: false, breakPaused: false, productionGoal: state.productionGoal ?? 0, actualProduction: state.actualProduction ?? 0, breaks: state.breaks });
+      set(lineRef, {
+        countdown: totalSeconds,
+        lastTick: Date.now(),
+        paused: false,
+        breakPaused: false,
+        productionGoal: state.productionGoal ?? 0,
+        actualProduction: state.actualProduction ?? 0,
+        breaks: state.breaks,
+        showProductionCounters: state.showProductionCounters
+      });
     });
 
     pauseBtn.addEventListener("click", () => {
@@ -176,16 +183,19 @@
       const now = Date.now();
       const elapsed = Math.floor((now - state.lastTick) / 1000);
       const remaining = state.countdown - elapsed;
-
-      update(lineRef, { countdown: state.paused ? state.countdown : Math.max(remaining, 0), lastTick: Date.now(), paused: !state.paused });
+      update(lineRef, {
+        countdown: state.paused ? state.countdown : Math.max(remaining, 0),
+        lastTick: state.paused ? Date.now() : state.lastTick,
+        paused: !state.paused
+      });
     });
 
     resetBtn.addEventListener("click", () => {
-      const totalSeconds =
-        (parseInt(document.getElementById("hours").value) || 0) * 3600 +
-        (parseInt(document.getElementById("minutes").value) || 0) * 60 +
-        (parseInt(document.getElementById("seconds").value) || 0);
-      update(lineRef, { countdown: totalSeconds, lastTick: Date.now(), paused: true });
+      update(lineRef, {
+        countdown: 1 * 3600 + 15 * 60,
+        lastTick: Date.now(),
+        paused: true
+      });
     });
 
     document.getElementById("goalInput").addEventListener("input", (e) => {
@@ -196,17 +206,24 @@
       update(lineRef, { actualProduction: parseInt(e.target.value) || 0 });
     });
 
-    window.setPreset = function (h, m, s) {
-      document.getElementById("hours").value = h;
-      document.getElementById("minutes").value = m;
-      document.getElementById("seconds").value = s;
+    document.getElementById("showCountersCheckbox").addEventListener("change", (e) => {
+      update(lineRef, { showProductionCounters: e.target.checked });
+    });
+
+    window.setPreset = function(hours, minutes, seconds) {
+      document.getElementById("hours").value = hours;
+      document.getElementById("minutes").value = minutes;
+      document.getElementById("seconds").value = seconds;
     }
   </script>
 </head>
 
 <body>
   <h1>Editor - Line 1</h1>
-  <button class="button" onclick="window.open('display.html','Display','toolbar=no,scrollbars=no,resizable=no,fullscreen=yes')">Open Display</button>
+
+  <div style="margin-top: 2rem;">
+    <button class="button" onclick="window.open('display.html','Display','toolbar=no,scrollbars=no,resizable=no,fullscreen=yes')">Open Display</button>
+  </div>
 
   <div style="margin-top: 2rem;">
     <label>Countdown:</label>
@@ -232,6 +249,11 @@
   <div style="margin-top: 1rem;">
     <label>Actual Production:</label>
     <input id="actualInput" type="number" />
+  </div>
+
+  <div style="margin-top: 1rem;">
+    <label>Show Production Counters:</label>
+    <input type="checkbox" id="showCountersCheckbox" />
   </div>
 
   <h2 style="margin-top: 2rem;">Breaks</h2>
