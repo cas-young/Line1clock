@@ -12,20 +12,21 @@
     #goal-actual-row { display: flex; justify-content: space-between; font-size: clamp(40px, 2vw, 100px); }
     .section { flex: 1; text-align: center; }
   </style>
+
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.1/firebase-app.js";
-    import { getDatabase, ref, onValue, get } from "https://www.gstatic.com/firebasejs/10.12.1/firebase-database.js";
+    import { getDatabase, ref, onValue, update } from "https://www.gstatic.com/firebasejs/10.12.1/firebase-database.js";
 
-  const firebaseConfig = {
-    apiKey: "AIzaSyCZ0_vkvKUTOls2WjUHWVWwNNJv5r3tcQ0",
-    authDomain: "production-clock-fa387.firebaseapp.com",
-    databaseURL: "https://production-clock-fa387-default-rtdb.firebaseio.com",
-    projectId: "production-clock-fa387",
-    storageBucket: "production-clock-fa387.firebasestorage.app",
-    messagingSenderId: "424015012572",
-    appId: "1:424015012572:web:e4a7cf053c16c367130a19",
-    measurementId: "G-YLMDMBRCLJ"
-  };
+    const firebaseConfig = {
+      apiKey: "AIzaSyCZ0_vkvKUTOls2WjUHWVWwNNJv5r3tcQ0",
+      authDomain: "production-clock-fa387.firebaseapp.com",
+      databaseURL: "https://production-clock-fa387-default-rtdb.firebaseio.com",
+      projectId: "production-clock-fa387",
+      storageBucket: "production-clock-fa387.appspot.com",
+      messagingSenderId: "424015012572",
+      appId: "1:424015012572:web:e4a7cf053c16c367130a19",
+      measurementId: "G-YLMDMBRCLJ"
+    };
 
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
@@ -36,13 +37,14 @@
     const dateTimeRow = document.getElementById("date-time-row");
     const goalElem = document.getElementById("goal");
     const actualElem = document.getElementById("actual");
+    const goalActualRow = document.getElementById("goal-actual-row");
 
     let state = null;
 
     function updateDateTime() {
       const now = new Date();
       const dateStr = now.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
-      const timeStr = now.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit'});
+      const timeStr = now.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit'} );
       dateTimeRow.textContent = `${dateStr} | ${timeStr}`;
     }
 
@@ -75,15 +77,38 @@
 
       const nowMinutes = new Date().getHours() * 60 + new Date().getMinutes();
       const breakText = checkBreak(nowMinutes, state.breaks);
+
       if (breakText) {
         breakMessage.style.display = "block";
         breakMessage.textContent = breakText;
+
+        if (!state.breakPaused) {
+          const elapsedNow = Math.floor((Date.now() - state.lastTick) / 1000);
+          const newCountdown = state.countdown - (state.paused ? 0 : elapsedNow);
+          update(lineRef, {
+            countdown: newCountdown,
+            paused: true,
+            breakPaused: true
+          });
+        }
       } else {
         breakMessage.style.display = "none";
+        if (state.breakPaused) {
+          update(lineRef, {
+            lastTick: Date.now(),
+            paused: false,
+            breakPaused: false
+          });
+        }
       }
 
-      goalElem.textContent = `Goal: ${state.productionGoal ?? "--"}`;
-      actualElem.textContent = `Actual: ${state.actualProduction ?? "--"}`;
+      if (state.showProductionCounters === false) {
+        goalActualRow.style.display = "none";
+      } else {
+        goalActualRow.style.display = "flex";
+        goalElem.textContent = `Goal: ${state.productionGoal ?? "--"}`;
+        actualElem.textContent = `Actual: ${state.actualProduction ?? "--"}`;
+      }
     }
 
     onValue(lineRef, (snapshot) => {
@@ -93,6 +118,7 @@
     setInterval(() => { updateCountdown(); updateDateTime(); }, 1000);
   </script>
 </head>
+
 <body>
   <h1>Line 1</h1>
   <div id="timer">--:--:--</div>
